@@ -23,6 +23,28 @@
     <string name="library_videos_count">%1$d 个视频</string>
     <string name="library_unknown_duration">未知时长</string>
     <string name="library_open_folder">打开文件夹</string>
+    <string name="library_sort">排序</string>
+    <string name="library_sort_name_asc">名称（A-Z）</string>
+    <string name="library_sort_name_desc">名称（Z-A）</string>
+    <string name="library_sort_date_desc">修改时间（新→旧）</string>
+    <string name="library_sort_date_asc">修改时间（旧→新）</string>
+    <string name="library_sort_size_desc">大小（大→小）</string>
+    <string name="library_sort_size_asc">大小（小→大）</string>
+    <string name="library_sort_duration_desc">时长（长→短）</string>
+    <string name="library_sort_duration_asc">时长（短→长）</string>
+    <string name="library_folder_up">返回上一级</string>
+    <string name="library_folder_empty_hint">这个文件夹里没有视频，试试返回上一级</string>
+    <string name="library_search">搜索</string>
+    <string name="library_search_hint">搜索视频名称</string>
+    <string name="library_search_close">关闭搜索</string>
+    <string name="library_search_mode_fuzzy">模糊</string>
+    <string name="library_search_mode_exact">精确</string>
+    <string name="library_search_scope_all">全部视频</string>
+    <string name="library_search_scope_folder">当前文件夹</string>
+    <string name="library_search_idle_title">搜索视频</string>
+    <string name="library_search_idle_hint">输入关键词开始搜索，可切换模糊与精确两种模式</string>
+    <string name="library_search_no_result">没有找到匹配的视频</string>
+    <string name="library_search_no_result_hint">换个关键词，或切换到模糊搜索试试</string>
 
     <!-- Network -->
     <string name="network_title">网络</string>

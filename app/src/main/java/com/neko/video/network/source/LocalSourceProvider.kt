@@ -10,6 +10,11 @@ import com.neko.video.model.MediaItemInfo
 import com.neko.video.model.SourceType
 import com.neko.video.model.SubtitleCandidate
 import com.neko.video.util.FormatUtils
+import com.neko.video.util.commonAncestorDirectory
+import com.neko.video.util.directoryNameOf
+import com.neko.video.util.isStorageVolumeRoot
+import com.neko.video.util.isUnderDirectory
+import com.neko.video.util.parentDirectoryOf
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.File
@@ -74,28 +79,77 @@ class LocalSourceProvider(
         result
     }
 
+    /**
+     * Builds the browsable folder tree for [videos].
+     *
+     * Every folder that directly holds videos becomes a node, together with the ancestors needed
+     * to reach it, so nested chapters are entered from their course folder instead of being
+     * flattened into the same list. The shared root of the tree is shown as one top-level entry;
+     * storage volume roots (`/`, `/storage/emulated/0`, …) never are.
+     */
     suspend fun loadFolders(videos: List<MediaItemInfo>): List<MediaFolder> =
         withContext(Dispatchers.Default) {
-            videos
-                .groupBy { item ->
-                    val path = item.path
-                    if (path.isNullOrBlank()) {
-                        "unknown" to "Unknown"
-                    } else {
-                        val parent = File(path).parentFile
-                        (parent?.absolutePath ?: "unknown") to (parent?.name ?: "Unknown")
+            val videosByDir = LinkedHashMap<String, MutableList<MediaItemInfo>>()
+            videos.forEach { video ->
+                val dir = video.path?.let(::parentDirectoryOf)?.takeIf { it.isNotBlank() }
+                    ?: return@forEach
+                videosByDir.getOrPut(dir) { mutableListOf() }.add(video)
+            }
+            if (videosByDir.isEmpty()) return@withContext emptyList()
+
+            val root = commonAncestorDirectory(videosByDir.keys)
+            val rootIsBrowsable = root.isNotBlank() && !isStorageVolumeRoot(root)
+
+            // Node set: every video folder plus the ancestors between it and the root.
+            val nodeDirs = LinkedHashSet<String>()
+            videosByDir.keys.forEach { dir ->
+                var current: String? = dir
+                while (current != null && current.isNotBlank()) {
+                    // A volume root stops the walk but never becomes a browsable entry.
+                    if (current == root && !rootIsBrowsable) break
+                    nodeDirs += current
+                    if (current == root) break
+                    current = parentDirectoryOf(current)
+                }
+            }
+
+            // Collapse a single-child top chain (e.g. "Download/课程" when only one course exists),
+            // so the first screen starts at a branch point instead of a pointless wrapper folder.
+            var collapsed = true
+            while (collapsed) {
+                collapsed = false
+                val tops = nodeDirs.filter { dir ->
+                    parentDirectoryOf(dir)?.let { it in nodeDirs } != true
+                }
+                if (tops.size == 1) {
+                    val only = tops.first()
+                    val childCount = nodeDirs.count { parentDirectoryOf(it) == only }
+                    val hasDirectVideos = videosByDir[only].orEmpty().isNotEmpty()
+                    if (childCount == 1 && !hasDirectVideos) {
+                        nodeDirs.remove(only)
+                        collapsed = true
                     }
                 }
-                .map { (key, items) ->
-                    MediaFolder(
-                        id = key.first,
-                        name = key.second,
-                        path = key.first,
-                        videoCount = items.size,
-                        thumbnailUri = items.firstOrNull()?.thumbnailUri,
-                    )
+            }
+
+            nodeDirs.map { dir ->
+                val direct = videosByDir[dir].orEmpty()
+                val recursive = videos.filter { item ->
+                    item.path?.let { isUnderDirectory(it, dir) } == true
                 }
-                .sortedBy { it.name.lowercase() }
+                MediaFolder(
+                    id = dir,
+                    name = directoryNameOf(dir),
+                    path = dir,
+                    videoCount = direct.size,
+                    thumbnailUri = recursive.firstOrNull()?.thumbnailUri,
+                    parentPath = parentDirectoryOf(dir)?.takeIf { it in nodeDirs },
+                    totalVideoCount = recursive.size,
+                    latestModifiedTime = recursive.maxOfOrNull { it.modifiedTime } ?: 0L,
+                    totalSize = recursive.sumOf { it.size },
+                    totalDuration = recursive.sumOf { it.duration },
+                )
+            }
         }
 
     suspend fun loadFromTreeUri(treeUri: Uri): List<MediaItemInfo> = withContext(Dispatchers.IO) {

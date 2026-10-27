@@ -10,6 +10,8 @@ import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import com.neko.video.model.AspectRatioMode
+import com.neko.video.model.MediaSort
+import com.neko.video.model.MediaSortField
 import com.neko.video.model.ThemeMode
 import com.neko.video.model.UserAgentPreset
 import kotlinx.coroutines.flow.Flow
@@ -45,6 +47,7 @@ data class SettingsState(
     val keyColor: Int = 0,
     val colorStyle: String = "TonalSpot",
     val colorSpec: String = "SPEC_2025",
+    val librarySort: MediaSort = MediaSort.DEFAULT,
 )
 
 class AppSettings(private val context: Context) {
@@ -92,6 +95,8 @@ class AppSettings(private val context: Context) {
             prefs[Keys.KEY_COLOR] = next.keyColor
             prefs[Keys.COLOR_STYLE] = next.colorStyle
             prefs[Keys.COLOR_SPEC] = next.colorSpec
+            prefs[Keys.LIBRARY_SORT_FIELD] = next.librarySort.field.name
+            prefs[Keys.LIBRARY_SORT_ASCENDING] = next.librarySort.ascending
         }
     }
 
@@ -129,6 +134,14 @@ class AppSettings(private val context: Context) {
         keyColor = this[Keys.KEY_COLOR] ?: 0,
         colorStyle = this[Keys.COLOR_STYLE] ?: "TonalSpot",
         colorSpec = this[Keys.COLOR_SPEC] ?: "SPEC_2025",
+        librarySort = MediaSort(
+            field = runCatching {
+                MediaSortField.valueOf(
+                    this[Keys.LIBRARY_SORT_FIELD] ?: MediaSortField.NAME.name,
+                )
+            }.getOrDefault(MediaSortField.NAME),
+            ascending = this[Keys.LIBRARY_SORT_ASCENDING] ?: true,
+        ),
     )
 
     private object Keys {
@@ -160,5 +173,7 @@ class AppSettings(private val context: Context) {
         val KEY_COLOR = intPreferencesKey("key_color")
         val COLOR_STYLE = stringPreferencesKey("color_style")
         val COLOR_SPEC = stringPreferencesKey("color_spec")
+        val LIBRARY_SORT_FIELD = stringPreferencesKey("library_sort_field")
+        val LIBRARY_SORT_ASCENDING = booleanPreferencesKey("library_sort_ascending")
     }
 }
